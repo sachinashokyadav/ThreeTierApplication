@@ -4,10 +4,12 @@ pipeline {
     environment {
         AWS_REGION        = "ap-south-1"
         AWS_ACCOUNT_ID    = "688372068524"
-        ECR_REPO          = "capstoneproject/docker-images"
-        ECR_URI           = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}"
-        SONARQUBE_SERVER  = "SonarQubeServer"       // Name configured in Jenkins
-        SONARQUBE_SCANNER = "SonarQubeScanner"      // Name configured in Jenkins
+        ECR_BACKEND_REPO  = "capstone/backend-img"
+        ECR_FRONTEND_REPO = "capstone/frontend-img"
+        ECR_BACKEND_URI   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_BACKEND_REPO}"
+        ECR_FRONTEND_URI  = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_FRONTEND_REPO}"
+        SONARQUBE_SERVER  = "SonarQubeServer"
+        SONARQUBE_SCANNER = "SonarQubeScanner"
     }
 
     stages {
@@ -100,14 +102,16 @@ pipeline {
                     env.BACKEND_TAG  = "backend-${GIT_COMMIT}"
                     env.FRONTEND_TAG = "frontend-${GIT_COMMIT}"
 
-                    echo "🐳 Building Docker images with tags: ${BACKEND_TAG}, ${FRONTEND_TAG}"
+                    echo "🐳 Building Docker images:"
+                    echo "Backend -> ${ECR_BACKEND_URI}:${BACKEND_TAG}"
+                    echo "Frontend -> ${ECR_FRONTEND_URI}:${FRONTEND_TAG}"
 
                     sh """
-                        cd \$WORKSPACE/Application-Code/backend
-                        docker build -t ${ECR_URI}:${BACKEND_TAG} .
+                        cd ${WORKSPACE}/Application-Code/backend
+                        docker build -t ${ECR_BACKEND_URI}:${BACKEND_TAG} .
 
-                        cd \$WORKSPACE/Application-Code/frontend
-                        docker build -t ${ECR_URI}:${FRONTEND_TAG} .
+                        cd ${WORKSPACE}/Application-Code/frontend
+                        docker build -t ${ECR_FRONTEND_URI}:${FRONTEND_TAG} .
                     """
                 }
             }
@@ -126,15 +130,15 @@ pipeline {
                             apt-get update -y && apt-get install -y trivy
                         fi
 
-                        mkdir -p \$WORKSPACE/reports
+                        mkdir -p ${WORKSPACE}/reports
 
                         echo "Scanning backend image..."
                         trivy image --exit-code 0 --severity HIGH,CRITICAL --format html \\
-                            -o \$WORKSPACE/reports/backend-trivy-report.html ${ECR_URI}:${BACKEND_TAG} || true
+                            -o ${WORKSPACE}/reports/backend-trivy-report.html ${ECR_BACKEND_URI}:${BACKEND_TAG} || true
 
                         echo "Scanning frontend image..."
                         trivy image --exit-code 0 --severity HIGH,CRITICAL --format html \\
-                            -o \$WORKSPACE/reports/frontend-trivy-report.html ${ECR_URI}:${FRONTEND_TAG} || true
+                            -o ${WORKSPACE}/reports/frontend-trivy-report.html ${ECR_FRONTEND_URI}:${FRONTEND_TAG} || true
                     """
                 }
             }
@@ -159,8 +163,8 @@ pipeline {
                 script {
                     echo "📤 Pushing Docker images to AWS ECR..."
                     sh """
-                        docker push ${ECR_URI}:${BACKEND_TAG}
-                        docker push ${ECR_URI}:${FRONTEND_TAG}
+                        docker push ${ECR_BACKEND_URI}:${BACKEND_TAG}
+                        docker push ${ECR_FRONTEND_URI}:${FRONTEND_TAG}
                     """
                 }
             }
@@ -170,7 +174,9 @@ pipeline {
 
     post {
         success {
-            echo "✅ Successfully built, scanned, and pushed Docker images to ECR: ${ECR_URI}"
+            echo "✅ Successfully built, scanned, and pushed images:"
+            echo "Backend Image: ${ECR_BACKEND_URI}:${BACKEND_TAG}"
+            echo "Frontend Image: ${ECR_FRONTEND_URI}:${FRONTEND_TAG}"
             cleanWs()
         }
         failure {
