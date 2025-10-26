@@ -124,6 +124,9 @@ kubectl apply -f full_stack_lb.yaml
 - To delete the EKS cluster:
 ``` shell
 eksctl delete cluster --name three-tier-cluster --region us-west-2
+OR
+eksctl delete cluster --name three-tier-cluster --region ap-south-1 --disable-nodegroup-eviction
+
 ```
 - To clean up rest of the stuff and not incure any cost
 ```
