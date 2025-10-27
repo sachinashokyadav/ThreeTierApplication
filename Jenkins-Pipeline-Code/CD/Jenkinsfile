@@ -24,6 +24,7 @@ pipeline {
 
         stage('Checkout Code') {
             steps {
+                echo "📥 Checking out application code..."
                 git branch: 'main', url: 'https://github.com/sachinashokyadav/ThreeTierApplication.git'
             }
         }
@@ -84,27 +85,36 @@ pipeline {
                     sh """
                         export KUBECONFIG=${KUBECONFIG_PATH}
 
+                        # ============================
+                        # 🧠 DATABASE DEPLOYMENT
+                        # ============================
                         if [ "${params.DEPLOY_COMPONENT}" = "database" ] || [ "${params.DEPLOY_COMPONENT}" = "all" ]; then
                             echo "🧠 Deploying Database..."
                             kubectl apply -f ${K8S_DIR}/Database/deployment.yaml -n ${KUBE_NAMESPACE}
                             kubectl apply -f ${K8S_DIR}/Database/service.yaml -n ${KUBE_NAMESPACE}
-                            kubectl rollout status deployment/database-deployment -n ${KUBE_NAMESPACE} || true
+                            kubectl rollout status deployment/database -n ${KUBE_NAMESPACE} || true
                         fi
 
+                        # ============================
+                        # 🧱 BACKEND DEPLOYMENT
+                        # ============================
                         if [ "${params.DEPLOY_COMPONENT}" = "backend" ] || [ "${params.DEPLOY_COMPONENT}" = "all" ]; then
                             echo "🧱 Deploying Backend..."
                             sed -i "s|image: .*backend.*|image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_BACKEND_REPO}:${BACKEND_TAG}|g" ${K8S_DIR}/Backend/deployment.yaml
                             kubectl apply -f ${K8S_DIR}/Backend/deployment.yaml -n ${KUBE_NAMESPACE}
                             kubectl apply -f ${K8S_DIR}/Backend/service.yaml -n ${KUBE_NAMESPACE}
-                            kubectl rollout status deployment/backend-deployment -n ${KUBE_NAMESPACE} || true
+                            kubectl rollout status deployment/backend -n ${KUBE_NAMESPACE} || true
                         fi
 
+                        # ============================
+                        # 🌐 FRONTEND DEPLOYMENT
+                        # ============================
                         if [ "${params.DEPLOY_COMPONENT}" = "frontend" ] || [ "${params.DEPLOY_COMPONENT}" = "all" ]; then
                             echo "🌐 Deploying Frontend..."
                             sed -i "s|image: .*frontend.*|image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_FRONTEND_REPO}:${FRONTEND_TAG}|g" ${K8S_DIR}/Frontend/deployment.yaml
                             kubectl apply -f ${K8S_DIR}/Frontend/deployment.yaml -n ${KUBE_NAMESPACE}
                             kubectl apply -f ${K8S_DIR}/Frontend/service.yaml -n ${KUBE_NAMESPACE}
-                            kubectl rollout status deployment/frontend-deployment -n ${KUBE_NAMESPACE} || true
+                            kubectl rollout status deployment/frontend -n ${KUBE_NAMESPACE} || true
                         fi
                     """
                 }
