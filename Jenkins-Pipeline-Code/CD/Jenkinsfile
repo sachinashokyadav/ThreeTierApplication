@@ -14,7 +14,7 @@ pipeline {
         AWS_REGION         = "ap-south-1"
         ECR_BACKEND_REPO   = "capstone/backend-img"
         ECR_FRONTEND_REPO  = "capstone/frontend-img"
-        KUBE_NAMESPACE     = "capstone"
+        KUBE_NAMESPACE     = "three-tier"
         CLUSTER_NAME       = "three-tier-cluster"
         KUBECONFIG_PATH    = "${WORKSPACE}/kubeconfig"
         K8S_DIR            = "${WORKSPACE}/ThreeTierApplication/Kubernetes-Manifests-file"
