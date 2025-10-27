@@ -24,7 +24,7 @@ pipeline {
 
         stage('Checkout Code') {
             steps {
-                git branch: 'main', url: 'https://github.com/sachinashokyadav/capstone-project.git'
+                git branch: 'main', url: 'https://github.com/sachinashokyadav/ThreeTierApplication.git'
             }
         }
 
@@ -86,9 +86,6 @@ pipeline {
 
                         if [ "${params.DEPLOY_COMPONENT}" = "database" ] || [ "${params.DEPLOY_COMPONENT}" = "all" ]; then
                             echo "🧠 Deploying Database..."
-                            kubectl apply -f ${K8S_DIR}/Database/secrets.yaml -n ${KUBE_NAMESPACE}
-                            kubectl apply -f ${K8S_DIR}/Database/pv.yaml -n ${KUBE_NAMESPACE}
-                            kubectl apply -f ${K8S_DIR}/Database/pvc.yaml -n ${KUBE_NAMESPACE}
                             kubectl apply -f ${K8S_DIR}/Database/deployment.yaml -n ${KUBE_NAMESPACE}
                             kubectl apply -f ${K8S_DIR}/Database/service.yaml -n ${KUBE_NAMESPACE}
                             kubectl rollout status deployment/database-deployment -n ${KUBE_NAMESPACE} || true
