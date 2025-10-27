@@ -16,7 +16,7 @@ pipeline {
 
         stage('Checkout Code') {
             steps {
-                git branch: 'main', url: 'https://github.com/sachinashokyadav/capstone-project.git'
+                git branch: 'main', url: 'https://github.com/sachinashokyadav/ThreeTierApplication.git'
             }
         }
 
