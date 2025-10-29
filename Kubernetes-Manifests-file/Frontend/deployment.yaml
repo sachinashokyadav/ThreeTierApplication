@@ -12,7 +12,7 @@ spec:
     type: RollingUpdate
     rollingUpdate:
       maxSurge: 1
-      maxUnavailable: 25%
+      maxUnavailable: 0
   selector:
     matchLabels:
       role: frontend
@@ -32,6 +32,6 @@ spec:
           imagePullPolicy: Always
           env:
             - name: REACT_APP_BACKEND_URL
-              value: "http://k8s-threetie-mainlb-73c240e86c-684211099.ap-south-1.elb.amazonaws.com/api/tasks"
+              value: "http://api-svc:3500/api/tasks"
           ports:
             - containerPort: 3000
