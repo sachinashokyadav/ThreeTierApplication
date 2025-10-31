@@ -90,6 +90,7 @@ pipeline {
                         # ============================
                         if [ "${params.DEPLOY_COMPONENT}" = "database" ] || [ "${params.DEPLOY_COMPONENT}" = "all" ]; then
                             echo "🧠 Deploying Database..."
+                            kubectl apply -f ${K8S_DIR}/Database/secret.yaml -n ${KUBE_NAMESPACE}
                             kubectl apply -f ${K8S_DIR}/Database/deployment.yaml -n ${KUBE_NAMESPACE}
                             kubectl apply -f ${K8S_DIR}/Database/service.yaml -n ${KUBE_NAMESPACE}
                             kubectl rollout status deployment/database -n ${KUBE_NAMESPACE} || true
@@ -115,6 +116,7 @@ pipeline {
                             kubectl apply -f ${K8S_DIR}/Frontend/deployment.yaml -n ${KUBE_NAMESPACE}
                             kubectl apply -f ${K8S_DIR}/Frontend/service.yaml -n ${KUBE_NAMESPACE}
                             kubectl rollout status deployment/frontend -n ${KUBE_NAMESPACE} || true
+                            
                         fi
                     """
                 }
