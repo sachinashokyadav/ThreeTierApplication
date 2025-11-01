@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongodb
+  namespace: three-tier
+spec:
+  serviceName: "mongodb"   # must match headless service name
+  replicas: 2
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      nodeSelector:
+        role: database       # keep this if your nodes are labeled for DB
+      containers:
+        - name: mongodb
+          image: mongo:4.4.6
+          ports:
+            - containerPort: 27017
+              name: mongodb
+          command:
+            - "mongod"
+            - "--bind_ip_all"
+            - "--replSet"
+            - "rs0"
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mongo-sec
+                  key: username    # ✅ exact key from secret
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongo-sec
+                  key: password    # ✅ exact key from secret
+          volumeMounts:
+            - name: mongo-data
+              mountPath: /data/db
+  volumeClaimTemplates:
+    - metadata:
+        name: mongo-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: gp2
+        resources:
+          requests:
+            storage: 1Gi
