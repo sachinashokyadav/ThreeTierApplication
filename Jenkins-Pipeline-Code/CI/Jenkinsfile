@@ -10,7 +10,7 @@ pipeline {
         ECR_FRONTEND_URI  = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_FRONTEND_REPO}"
         SONARQUBE_SERVER  = "SonarQubeServer"
         SONARQUBE_SCANNER = "SonarQubeScanner"
-        GIT_CREDENTIAL_ID = "github-credentials"   // Add your Jenkins GitHub credentials ID
+        GIT_CREDENTIAL_ID = "gihtub-conn"   // Add your Jenkins GitHub credentials ID
     }
 
     stages {
