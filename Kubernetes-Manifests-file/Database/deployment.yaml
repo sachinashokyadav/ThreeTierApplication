@@ -1,10 +1,26 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb
+  namespace: three-tier
+  labels:
+    app: mongodb
+spec:
+  clusterIP: None  # Headless service required for StatefulSet
+  selector:
+    app: mongodb
+  ports:
+    - name: mongodb
+      port: 27017
+      targetPort: 27017
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: mongodb
   namespace: three-tier
 spec:
-  serviceName: "mongodb"   # must match headless service name
+  serviceName: "mongodb"
   replicas: 2
   selector:
     matchLabels:
@@ -15,7 +31,26 @@ spec:
         app: mongodb
     spec:
       nodeSelector:
-        role: database       # keep this if your nodes are labeled for DB
+        role: database
+      securityContext:
+        fsGroup: 999
+
+      initContainers:
+        - name: fix-permissions
+          image: busybox
+          command:
+            - sh
+            - -c
+            - |
+              cp /tmp/keyfile/keyfile /etc/secrets/keyfile
+              chown 999:999 /etc/secrets/keyfile
+              chmod 600 /etc/secrets/keyfile
+          volumeMounts:
+            - name: mongo-keyfile-vol
+              mountPath: /tmp/keyfile
+            - name: keyfile-workdir
+              mountPath: /etc/secrets
+
       containers:
         - name: mongodb
           image: mongo:4.4.6
@@ -23,24 +58,81 @@ spec:
             - containerPort: 27017
               name: mongodb
           command:
-            - "mongod"
-            - "--bind_ip_all"
-            - "--replSet"
-            - "rs0"
+            - bash
+            - -c
+            - |
+              echo "🧹 Cleaning up old lock files..."
+              rm -f /data/db/mongod.lock
+
+              echo "🚀 Starting MongoDB node $(hostname)..."
+              if [[ "$(hostname)" == "mongodb-0" ]]; then
+                # Start mongod temporarily for initialization
+                mongod --bind_ip_all --replSet rs0 --auth --keyFile /etc/secrets/keyfile --dbpath /data/db &
+                sleep 15
+
+                echo "⏳ Waiting for secondary pod DNS to resolve..."
+                until ping -c 1 mongodb-1.mongodb.three-tier.svc.cluster.local >/dev/null 2>&1; do
+                  echo "Waiting for mongodb-1..."
+                  sleep 5
+                done
+
+                echo "🧠 Initializing replica set..."
+                mongo --eval '
+                  rs.initiate({
+                    _id: "rs0",
+                    members: [
+                      { _id: 0, host: "mongodb-0.mongodb.three-tier.svc.cluster.local:27017" },
+                      { _id: 1, host: "mongodb-1.mongodb.three-tier.svc.cluster.local:27017" }
+                    ]
+                  });
+                  db.getSiblingDB("admin").createUser({
+                    user: "'$MONGO_INITDB_ROOT_USERNAME'",
+                    pwd: "'$MONGO_INITDB_ROOT_PASSWORD'",
+                    roles: [ { role: "root", db: "admin" } ]
+                  });
+                '
+
+                echo "✅ Replica set initialized successfully. Restarting MongoDB in foreground..."
+                pkill mongod
+                sleep 5
+                exec mongod --bind_ip_all --replSet rs0 --auth --keyFile /etc/secrets/keyfile --dbpath /data/db
+              else
+                exec mongod --bind_ip_all --replSet rs0 --auth --keyFile /etc/secrets/keyfile --dbpath /data/db
+              fi
+
           env:
             - name: MONGO_INITDB_ROOT_USERNAME
               valueFrom:
                 secretKeyRef:
                   name: mongo-sec
-                  key: username    # ✅ exact key from secret
+                  key: username
             - name: MONGO_INITDB_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: mongo-sec
-                  key: password    # ✅ exact key from secret
+                  key: password
+
           volumeMounts:
             - name: mongo-data
               mountPath: /data/db
+            - name: keyfile-workdir
+              mountPath: /etc/secrets
+
+          securityContext:
+            runAsUser: 999
+            runAsGroup: 999
+
+      volumes:
+        - name: mongo-keyfile-vol
+          secret:
+            secretName: mongo-keyfile-secret
+            defaultMode: 0400
+            items:
+              - key: keyfile
+                path: keyfile
+        - name: keyfile-workdir
+          emptyDir: {}
+
   volumeClaimTemplates:
     - metadata:
         name: mongo-data
@@ -49,4 +141,5 @@ spec:
         storageClassName: gp2
         resources:
           requests:
-            storage: 1Gi
+            storage: 2Gi
+            
