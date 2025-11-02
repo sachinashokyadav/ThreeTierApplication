@@ -12,7 +12,7 @@ spec:
     type: RollingUpdate
     rollingUpdate:
       maxSurge: 1
-      maxUnavailable: 0
+      maxUnavailable: 25%
   selector:
     matchLabels:
       role: api
@@ -27,11 +27,17 @@ spec:
         - name: ecr-registry-secret
       containers:
         - name: api
-          image: 688372068524.dkr.ecr.ap-south-1.amazonaws.com/capstone/backend-img:backend-a2afaa6
+          image: 688372068524.dkr.ecr.ap-south-1.amazonaws.com/capstone/backend-img:backend-efaa69c
           imagePullPolicy: Always
           env:
+            # MongoDB Replica Set connection string
             - name: MONGO_CONN_STR
-              value: mongodb://mongodb:27017/todo?directConnection=true
+              valueFrom:
+                secretKeyRef:
+                  name: mongo-sec
+                  key: connectionString
+
+            # Mongo credentials
             - name: MONGO_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -40,7 +46,3 @@ spec:
             - name: MONGO_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: mongo-sec
-                  key: password
-          ports:
-            - containerPort: 3500
